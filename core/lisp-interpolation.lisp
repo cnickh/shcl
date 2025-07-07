@@ -262,6 +262,13 @@ once.")
 (defstruct place
   value)
 
+(defun rm-trailing-newline (string)
+    (if (and (> (length string) 0)
+                        (char= (char string (1- (length string))) #\Newline))
+              (subseq string 0 (1- (length string)))
+                    string))
+
+
 (defun consume (retained-fd output-place encoding)
   "Read from `retained-fd' and store the resulting string in `output-place'.
 
@@ -287,7 +294,9 @@ call this function."
               (loop :for byte :across part :do
                  (vector-push-extend byte content)))
             :while (not (zerop (length part))))
-         (setf (place-value output-place) (babel:octets-to-string content :encoding encoding))
+         (setf (place-value output-place) 
+               (rm-trailing-newline
+                (babel:octets-to-string content :encoding encoding)))
          (values))
     (fd-wrapper-release retained-fd)))
 

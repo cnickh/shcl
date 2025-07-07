@@ -13,7 +13,8 @@
  * limitations under the License.
  */
 
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
+//#define _POSIX_C_SOURCE 200809L
 
 #include "spawn.h"
 
@@ -23,6 +24,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <grp.h>
+
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 enum shcl_fd_action {
     shcl_fd_action_close,
@@ -93,28 +99,66 @@ void shcl_fd_actions_add_dup2(shcl_fd_actions *actions, int fd1, int fd2)
     shcl_fd_actions_add_node(actions, node);
 }
 
+void shcl_exit(const char *msg) {
+     fprintf(stderr, "shcl: %s \n", msg);
+    _exit(127);
+}
+
+
 void shcl_fd_actions_take(shcl_fd_actions *actions)
 {
-    for (shcl_fd_action_node *node = actions->head; NULL != node; node = node->next) {
+    for (shcl_fd_action_node *node = actions->head; NULL != node; node = node->next) {    
         switch (node->action) {
         case shcl_fd_action_close:
             if (0 != close(node->fd_arg_1)) {
-                _exit(127);
+                shcl_exit("fd_action close failed");
             }
             break;
 
         case shcl_fd_action_dup2:
             if (0 > dup2(node->fd_arg_1, node->fd_arg_2)) {
-                _exit(127);
+                shcl_exit("fd_action dup2 failed");
             }
             break;
+        default:
+            printf("Action: unknown(%d, %d)\n", node->fd_arg_1, node->fd_arg_2);
+            break;
+        }
+    }
+
+}
+
+void shcl_environment(const char *root, gid_t gid, uid_t uid) {
+    if (root) {
+        if (chroot(root) != 0) {
+            shcl_exit("chroot failed!");
+        }
+    }
+
+    if (setgroups(0, NULL) != 0) {
+        shcl_exit("setgroups failed!");
+    }
+
+    if (gid != (gid_t)-1) {
+        if (setgid(gid) != 0) {
+            shcl_exit("setgid failed!");
+        }
+    }
+
+    if (uid != (uid_t)-1) {
+        if (setuid(uid) != 0) {
+            shcl_exit("setuid failed!");
         }
     }
 }
 
+
 int shcl_spawn(
     pid_t *pid,
     const char *path,
+    const char *root,
+    int uid,
+    int gid,
     int search,
     int working_directory_fd,
     shcl_fd_actions *fd_actions,
@@ -122,6 +166,7 @@ int shcl_spawn(
     char * const envp[])
 {
     pid_t forked_pid = fork();
+
     if (forked_pid < 0) {
         return 0;
     } else if (forked_pid > 0) {
@@ -130,20 +175,54 @@ int shcl_spawn(
     }
 
     if (0 > fchdir(working_directory_fd)) {
-        fprintf(stderr, "shcl: %s: Invalid working directory: %s\n", path, strerror(errno));
-        _exit(127);
+        shcl_exit("Invalid working directory");
     }
 
     shcl_fd_actions_take(fd_actions);
-
+    
     extern char **environ;
     environ = (char **)envp;
 
+    shcl_environment(root, gid, uid);
+   
     if (search) {
         execvp(path, argv);
     } else {
         execv(path, argv);
     }
-    fprintf(stderr, "shcl: %s: %s\n", path, strerror(errno));
-    _exit(127);
+
+    //print all info to help debug failure
+    fprintf(stdout,
+            "  errno:                %d\n"
+            "  strerr:               %s\n"
+            "spawn parameters:\n"
+            "  path:                 %s\n"
+            "  root:                 %s\n"
+            "  uid:                  %d\n"
+            "  gid:                  %d\n"
+            "  search:               %d\n"
+            "  working_directory_fd: %d\n",
+            errno, 
+            strerror(errno),
+            path,
+            root,
+            uid,
+            gid,
+            search,
+            working_directory_fd);
+    
+    // Print argv[]
+    fprintf(stderr, "  argv:\n");
+    for (int i = 0; argv[i] != NULL; i++) {
+        fprintf(stderr, "    [%d]: %s\n", i, argv[i]);
+    }
+
+    // Print envp[]
+    fprintf(stderr, "  envp:\n");
+    for (int i = 0; envp[i] != NULL; i++) {
+        fprintf(stderr, "    [%d]: %s\n", i, envp[i]);
+    }
+
+
+    shcl_exit("Passed EXEC");
 }

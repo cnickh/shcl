@@ -202,7 +202,12 @@ directory."
       (debug-log status "CD ~A [~A => ~A] PWD=~A"
                  (if physical-p "physical" "logical")
                  path cd-string pwd-string)
-      (funcall switcher-fn cd-string)
+      
+      (funcall switcher-fn 
+               (if shcl/core/contain::*root*
+                   (format nil "~a~a"
+                           shcl/core/contain::*root* cd-string)
+                   cd-string))
       (unless pwd-string
         (setf pwd-string (physical-pwd)))
       (setf $oldpwd $pwd)

@@ -43,6 +43,7 @@
 to the environment binding strings."
   (let ((environment-pointer (gensym "ENVIRONMENT-POINTER"))
         (index (gensym "INDEX")))
+    (format t "macro expand time ~a ~%" environ)
     `(loop :with ,environment-pointer = environ
            :with ,index = 0
            :until (null-pointer-p (mem-aref ,environment-pointer :pointer ,index))

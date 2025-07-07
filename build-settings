@@ -1,0 +1,2 @@
+SHCL_DEBUG=1
+LISP=sbcl

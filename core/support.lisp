@@ -297,17 +297,24 @@ descriptors."
 (defun non-zero-p (int)
   (not (zerop int)))
 
+
+;;TODO erroneously I am representing uid and gid as signed int when in reality they are unsigned
+;;although these typically stay low < 65,535, it *should* be okay. Regardless, this is more so a hacky way 
+;;to set them in spawned processes so subject to change
 (define-c-wrapper (%shcl-spawn "shcl_spawn" :library shcl-support :loader ensure-shcl-support-loaded)
     (:int 'non-zero-p)
   (pid (:pointer pid-t))
   (path :string)
+  (root :string)
+  (uid :int)
+  (gid :int)
   (search :int)
   (working-directory-fd :int)
   (fd-actions fd-actions)
   (argv string-table)
   (envp string-table))
 
-(defun shcl-spawn (path search-p working-directory-fd fd-actions argv envp)
+(defun shcl-spawn (path root uid gid search-p working-directory-fd fd-actions argv envp)
   "Spawn a new process.
 
 `path' is the path to the binary to run.  If `search-p' is non-nil,
@@ -327,5 +334,5 @@ the program name as the first element in the sequence.
 `envp' is a sequence of strings describing the desired process
 environment.  Each string should be of the form \"VAR=VALUE\"."
   (with-foreign-object (pid 'pid-t)
-    (%shcl-spawn pid path (if search-p 1 0) working-directory-fd fd-actions argv envp)
+    (%shcl-spawn pid path (if root root (null-pointer)) uid gid (if search-p 1 0) working-directory-fd fd-actions argv envp)
     (mem-ref pid 'pid-t)))

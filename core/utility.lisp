@@ -85,7 +85,7 @@ to trick editors into using better indentation."
     (error "document expects exactly one docstring"))
   (check-type symbol symbol)
   (check-type doc-type symbol)
-  (check-type (car documentation-string) string)
+  ;;(check-type (car documentation-string) string)
   `(setf (documentation ',symbol ',doc-type) ,(car documentation-string)))
 
 (defconstant +whitespace-characters+

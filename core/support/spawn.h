@@ -27,6 +27,9 @@ void shcl_fd_actions_add_dup2(shcl_fd_actions *actions, int fd1, int fd2);
 int shcl_spawn(
     pid_t *pid,
     const char *path,
+    const char *root,
+    int uid,
+    int gid,
     int search,
     int working_directory_fd,
     shcl_fd_actions *fd_actions,

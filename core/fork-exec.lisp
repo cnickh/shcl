@@ -17,6 +17,8 @@
         :shcl/core/posix-types :shcl/core/posix :shcl/core/support)
   (:import-from :shcl/core/fd-table #:fd-wrapper-release #:fd-wrapper-value
                 #:retained-fd-dup)
+  (:import-from :shcl/core/contain
+                :*uid* :*gid* :*root*)
   (:shadowing-import-from :alexandria #:when-let #:when-let*)
   (:import-from :cl-fad #:list-directory #:directory-pathname-p #:pathname-as-file)
   (:export #:run))
@@ -106,4 +108,5 @@ working directory for the child process.  This file descriptor must be
 suitable for passing to the fchdir POSIX C function."
   (let ((fd-actions (make-fd-actions)))
     (take-fd-map fd-alist managed-fds fd-actions)
-    (shcl-spawn (fset:first command) t working-directory-fd fd-actions command environment)))
+    (shcl-spawn (fset:first command) *root* (or *uid* -1) (or *gid* -1) t 
+                working-directory-fd fd-actions command environment)))
